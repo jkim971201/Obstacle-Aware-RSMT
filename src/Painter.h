@@ -8,50 +8,55 @@
 #include <QScreen>
 #include <unordered_map>
 #include <vector>
+#include <cassert>
 
-#include "Grid.h"
-
-namespace gui
-{
-
-class Rect
+class GCell
 {
   public:
  
-		Rect() {}
+    GCell() {}
 
-    Rect(int lx, int ly, int w, int h)
+    GCell(int lx, int ly, int w, int h)
       : lx_      (lx),
         ly_      (ly),
         w_       ( w),
         h_       ( h),
-				isPath_  (false),
-				isTerm_  (false),
-				isObs_   (false)
+        isPath_  (false),
+        isTerm_  (false),
+        isObs_   (false)
     {
-			rect_ = QRectF(lx, ly, w, h); 
-		}
+      rect_ = QRectF(lx, ly, w, h); 
+    }
 
-		// Getters
+    void setPath()   { isPath_  = true; }
+    void setObs()    { isObs_   = true; }
+    void setTerm()   { isTerm_  = true; }
+
+    // Getters
     const QRectF& rect() const { return rect_; }
 
-		int x() const { return x_; }
-		int y() const { return y_; }
+    int w()  const { return w_;  }
+    int h()  const { return h_;  }
+    int lx() const { return lx_; }
+    int ly() const { return ly_; }
 
-		bool isPath() const { return isPath_; }
-		bool isObs () const { return isObs_;  }
-		bool isTerm() const { return isTerm_; }
+    bool isPath() const { return isPath_; }
+    bool isObs () const { return isObs_;  }
+    bool isTerm() const { return isTerm_; }
 
-	private:
+  private:
 
-    int x_;
-		int y_;
+    int w_;
+    int h_;
 
-		bool isPath_;
-		bool isTerm_;
-		bool isObs_;
+    int lx_;
+    int ly_;
 
-		QRectF rect_;
+    bool isPath_;
+    bool isTerm_;
+    bool isObs_;
+
+    QRectF rect_;
 };
 
 class Painter : public QWidget
@@ -65,13 +70,17 @@ class Painter : public QWidget
 
     // APIs
     void openWindow();
-		void setTerms(const std::vector<int>& termX, 
-				          const std::vector<int>& termY);
 
-		void setObstacles(const std::vector<int>& obsX1,
-				              const std::vector<int>& obsY1,
-				              const std::vector<int>& obsX2,
-				              const std::vector<int>& obsY2);
+    void setPath(const std::vector<int>& pathX, 
+                 const std::vector<int>& pathY);
+
+    void setTerms(const std::vector<int>& termX, 
+                  const std::vector<int>& termY);
+
+    void setObstacles(const std::vector<int>& obsX1,
+                      const std::vector<int>& obsY1,
+                      const std::vector<int>& obsX2,
+                      const std::vector<int>& obsY2);
 
   protected:
 
@@ -85,9 +94,10 @@ class Painter : public QWidget
     QColor rectFillColor_;
     QColor rectLineColor_;
 
-    void drawLine(QPainter* painter, QPointF p1, QPointF p2, QColor lineColor = Qt::black, int thickness = 1);
-    void drawRect(QPainter* painter, const QRectF& rect, QColor rectColor = Qt::white, QColor rectLineColor = Qt::black, int thickness = 1);
-    void drawRect(QPainter* painter, int lx, int ly, int w, int h);
+    void drawGCell(QPainter* painter, const GCell& gCell);
+    void drawLine (QPainter* painter, QPointF p1, QPointF p2, QColor lineColor = Qt::black, int thickness = 1);
+    void drawRect (QPainter* painter, const QRectF& rect, QColor rectColor = Qt::white, QColor rectLineColor = Qt::black, int thickness = 1);
+    void drawRect (QPainter* painter, int lx, int ly, int w, int h, QColor rectColor = Qt::white, QColor rectLineColor = Qt::white);
 
     int windowWidth_;
     int windowHeight_;
@@ -100,9 +110,5 @@ class Painter : public QWidget
     float gCellWidth_;
     float gCellHeight_;
 
-		std::vector<std::vector<bool>>   
-		std::vector<std::vector<QRectF>> gCells_;
-    std::vector<QRectF> obstacles_;
+    std::vector<std::vector<GCell>> gCells_;
 };
-
-}

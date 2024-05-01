@@ -1,26 +1,17 @@
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <random>
-#include <time.h>
-
 #include "Painter.h"
 
-namespace gui
-{
-
 Painter::Painter(QApplication* app, int maxX, int maxY)
-  : app_                 (       app),
-    offset_              (        20),
-    baseColor_           ( Qt::gray ),
-    rectFillColor_       ( Qt::white),
-    rectLineColor_       ( Qt::black),
-    gridX_               (      maxX),
-    gridY_               (      maxY),
-    gridWidth_           (       0.0),
-    gridHeight_          (       0.0),
-    gCellWidth_          (       0.0),
-    gCellHeight_         (       0.0)
+  : app_                 (      app),
+    offset_              (       20),
+    baseColor_           (Qt::gray ),
+    rectFillColor_       (Qt::white),
+    rectLineColor_       (Qt::black),
+    gridX_               (     maxX),
+    gridY_               (     maxY),
+    gridWidth_           (      0.0),
+    gridHeight_          (      0.0),
+    gCellWidth_          (      0.0),
+    gCellHeight_         (      0.0)
 {
   QSize size = app->screens()[0]->size();
 
@@ -56,9 +47,9 @@ Painter::Painter(QApplication* app, int maxX, int maxY)
 
   for(int i = 0; i < gridX_; i++)
   {
-    for(int j = 0; j < gridY_; j++)
+    for(int j = gridY_ - 1; j >= 0; j--)
     {
-      gCells_[i][j] = QRectF(curX, curY, gCellWidth_, gCellHeight_);
+      gCells_[i][j] = GCell(curX, curY, gCellWidth_, gCellHeight_);
       curY -= gCellHeight_;
     }
     curY = static_cast<float>(offset_) + gridHeight_ - gCellHeight_;
@@ -74,15 +65,6 @@ Painter::drawLine(QPainter* painter, QPointF p1, QPointF p2, QColor lineColor, i
 }
 
 void
-Painter::drawRect(QPainter* painter, const QRectF* rect, QColor rectColor, QColor lineColor, int thickness)
-{
-  painter->setPen( QPen(lineColor , thickness) );
-  painter->setBrush(rectColor);
-
-  drawRect(painter, *rect, rectColor, lineColor);
-}
-
-void
 Painter::drawRect(QPainter* painter, const QRectF& rect, QColor rectColor, QColor lineColor, int thickness)
 {
   painter->setPen( QPen(lineColor , thickness) );
@@ -93,54 +75,66 @@ Painter::drawRect(QPainter* painter, const QRectF& rect, QColor rectColor, QColo
 }
 
 void
-Painter::drawRect(QPainter* painter, int lx, int ly, int w, int h)
+Painter::drawRect(QPainter* painter, int lx, int ly, int w, int h, QColor rectColor, QColor lineColor)
 {
+  painter->setPen(QPen(lineColor , 1));
+  painter->setBrush(rectColor);
+
   QRect test(lx, ly, w, h);
 
-  painter->drawRect( test );
-  painter->fillRect( test, painter->brush() );
+  painter->drawRect(test);
+  painter->fillRect(test, painter->brush() );
 }
 
 void
-Painter::drawGCell(QPainter* painter, const GCell& gCell, QColor rectColor, QColor rectLineColor, int thickness)
+Painter::drawGCell(QPainter* painter, const GCell& gCell)
 {
-	drawRect(painter, gCell.rect(), rectColor, rectLineColor, thickness);
+	if(gCell.isTerm())
+    drawRect(painter, gCell.lx() - 1, gCell.ly() - 1, gCell.w() + 1, gCell.h() + 1, Qt::red, Qt::red);
+	else if(gCell.isObs())
+    drawRect(painter, gCell.rect(), Qt::darkGray, Qt::darkGray, 1);
+	else
+    drawRect(painter, gCell.rect(), Qt::white, Qt::white, 1);
 }
 
 void
-Painter::setPath(const std::vector<Point>& path)
+Painter::setPath(const std::vector<int>& pathX,
+                 const std::vector<int>& pathY)
 {
-	for(auto& n : path)
-	{
-		// printf("Set Path : (%d, %d)\n", n.x, n.y);
-		gCellInsts_[n.x][n.y].setPath();
-	}
+  for(int i = 0; i < pathX.size(); i++)
+    gCells_[pathX[i]][pathY[i]].setTerm();
 }
 
 void
-Painter::setBlock(const std::vector<Point>& block)
+Painter::setObstacles(const std::vector<int>& obsX1,
+                      const std::vector<int>& obsY1,
+                      const std::vector<int>& obsX2,
+                      const std::vector<int>& obsY2)
 {
-	for(auto& n : block)
-	{
-		// printf("Set Block : (%d, %d)\n", n.x, n.y);
-		gCellInsts_[n.x][n.y].setBlock();
-	}
+  for(int i = 0; i < obsX1.size(); i++)
+  {
+    const int x1 = obsX1[i];
+    const int y1 = obsY1[i];
+    const int x2 = obsX2[i];
+    const int y2 = obsY2[i];
+
+    assert(x1 <= x2);
+    assert(y1 <= y2);
+  
+    for(int x = x1; x < x2 + 1; x++)
+    {
+      for(int y = y1; y < y2 + 1; y++)
+        gCells_[x][y].setObs();
+    }
+  }
 }
 
 void
-Painter::setSink(const std::vector<Point>& sink)
+Painter::setTerms(const std::vector<int>& termX,
+                  const std::vector<int>& termY)
 {
-	for(auto& n : sink)
-	{
-		// printf("Set Sink : (%d, %d)\n", n.x, n.y);
-		gCellInsts_[n.x][n.y].setSink();
-	}
-}
-
-void
-Painter::setSource(const Point& src)
-{
-	gCellInsts_[src.x][src.y].setSource();
+  for(int i = 0; i < termX.size(); i++)
+    gCells_[termX[i]][termY[i]].setTerm();
 }
 
 void
@@ -155,21 +149,10 @@ Painter::paintEvent(QPaintEvent* event)
   QRect canvas(offset_, offset_, windowWidth_ - 2 * offset_, windowHeight_ - 2 * offset_);
   painter.drawRect( canvas );
 
-  for(int i = 0; i < numGCellX_; i++)
+  for(int i = 0; i < gridX_; i++)
   {
-    for(int j = 0; j < numGCellY_; j++)
-    {
-      if( gCellInsts_[i][j].isSource() )
-        drawGCell( &painter, gCellInsts_[i][j], Qt::blue, Qt::black, 4);
-			else if( gCellInsts_[i][j].isSink() )
-        drawGCell( &painter, gCellInsts_[i][j], Qt::red, Qt::black, 4);
-      else if( gCellInsts_[i][j].isPath() )
-        drawGCell( &painter, gCellInsts_[i][j], Qt::darkRed, Qt::black, 4);
-      else if( gCellInsts_[i][j].isBlock() )
-        drawGCell( &painter, gCellInsts_[i][j], Qt::darkGray, Qt::black, 4);
-      else 
-				drawGCell( &painter, gCellInsts_[i][j], Qt::white, Qt::black, 4);
-    }
+    for(int j = 0; j < gridY_; j++)
+			drawGCell(&painter, gCells_[i][j]);
   }
 }
 
@@ -180,6 +163,4 @@ Painter::openWindow()
   printf("Height of the window is : %d\n", windowHeight_);
   this->show();
   int app_exec = app_->exec();
-}
-
 }

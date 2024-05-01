@@ -7,16 +7,24 @@
 #include <climits>
 #include <algorithm>
 
+#include "Painter.h"
+
 void readInput(const std::string&      fileName,
                      std::vector<int>& termX_arr,
                      std::vector<int>& termY_arr,
                      std::vector<int>& obsX1_arr,
                      std::vector<int>& obsY1_arr,
                      std::vector<int>& obsX2_arr,
-                     std::vector<int>& obsY2_arr)
+                     std::vector<int>& obsY2_arr,
+                     int& maxX,
+                     int& maxY,
+                     int& minX,
+                     int& minY)
 {
-  int maxX = 0;
-  int maxY = 0;
+  maxX = 0;
+  maxY = 0;
+  minX = std::numeric_limits<int>::max();
+  minY = std::numeric_limits<int>::max();
   int numPin = 0;
   int numObs = 0;
 
@@ -80,6 +88,9 @@ void readInput(const std::string&      fileName,
     if(termX > maxX) maxX = termX;
     if(termY > maxY) maxY = termY;
 
+    if(termX < minX) minX = termX;
+    if(termY < minY) minY = termY;
+
     std::getline(fileStream, line);
   }
 
@@ -115,8 +126,30 @@ void readInput(const std::string&      fileName,
     if(x2 > maxX) maxX = x2;
     if(y2 > maxY) maxY = y2;
 
+    if(x1 < minX) minX = x1;
+    if(y1 < minY) minY = y1;
+    if(x2 < minX) minX = x2;
+    if(y2 < minY) minY = y2;
+
     std::getline(fileStream, line);
   }
+
+  for(int i = 0; i < numPin; i++)
+	{
+		termX_arr[i] -= minX;
+		termY_arr[i] -= minY;
+	}
+
+  for(int i = 0; i < numObs; i++)
+  {
+		obsX1_arr[i] -= minX;
+		obsY1_arr[i] -= minY;
+		obsX2_arr[i] -= minX;
+		obsY2_arr[i] -= minY;
+  }
+
+  maxX = maxX - minX + 1;
+  maxY = maxY - minY + 1;
 
   assert(numObsRead == numObs);
 }
@@ -130,13 +163,25 @@ int main(int argc, char** argv)
   std::vector<int> obsX2;
   std::vector<int> obsY2;
 
+  int minX;
+  int minY;
   int maxX;
   int maxY;
 
-  if(argc < 2)
+  if(argc < 2) 
     printf("Error - No Input file!\n");
-  else
-    readInput(std::string(argv[1]), termX, termY, obsX1, obsY1, obsX2, obsY2, maxX, maxY);
+  else         
+    readInput(std::string(argv[1]), termX, termY, obsX1, obsY1, obsX2, obsY2, maxX, maxY, minX, minY);
+
+  QApplication app(argc, argv);
+  Painter vis(&app, maxX, maxY);
+
+  printf("MaxX: %d MaxY: %d\n", maxX, maxY);
+  printf("MinX: %d MinY: %d\n", minX, minY);
+
+  vis.setTerms(termX, termY);
+  vis.setObstacles(obsX1, obsY1, obsX2, obsY2);
+  vis.openWindow();
 
   return 0;
 }
